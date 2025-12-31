@@ -1,64 +1,85 @@
 # Self-Healing Kubernetes Node Pool Controller
 
-A Kubernetes controller that detects degraded nodes using custom signals (Prometheus metrics) and remediates them (Cordon, Drain, Replace) to maintain cluster health.
+[![CI](https://github.com/rramesh17993/Self-Healing-Node-Pool-Controller/actions/workflows/ci.yaml/badge.svg)](https://github.com/rramesh17993/Self-Healing-Node-Pool-Controller/actions/workflows/ci.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rramesh17993/Self-Healing-Node-Pool-Controller)](https://goreportcard.com/report/github.com/rramesh17993/Self-Healing-Node-Pool-Controller)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Overview
+**Built and Maintained by [Rajesh Ramesh](https://github.com/rramesh17993)**
 
-This controller implements a closed-loop control system:
-1.  **Collect**: Scrapes metrics (Disk IO, Network Drops, etc.) from nodes.
-2.  **Score**: Calculates a health score (0.0 - 1.0) based on weighted signals.
-3.  **Decide**: Evaluates health scores against a `NodeHealingPolicy`.
-4.  **Remediate**: Cordons and drains unhealthy nodes if they exceed thresholds.
+A production-grade Kubernetes Controller designed to close the observability gap between "Node Ready" and "Application Healthy". It proactively detects silent node degradation (e.g., slow disk I/O, network packet drops, zombie processes) and automates the remediation lifecycle.
 
 ## Architecture
 
+The controller operates as a closed-loop control system independent of the cloud provider's control plane.
+
 ```mermaid
 graph TD
-    Prometheus[Prometheus] -->|Metrics| Collector
-    Kubelet[Kubelet] -->|Status| Collector
-    Collector -->|Signals| Scorer
-    Scorer -->|Score| DecisionEngine
-    Policy[NodeHealingPolicy CR] --> DecisionEngine
-    DecisionEngine -->|Action| Executor
-    Executor -->|Cordon/Drain| K8sAPI
+    subgraph "Observation Loop"
+        Prometheus[Prometheus / Metrics Adapter] -->|Raw Signals| Collector
+        Kubelet[Kubelet] -->|Node Conditions| Collector
+    end
+
+    subgraph "Control Loop"
+        Collector -->|Normalized Metrics| Scorer
+        Scorer -->|Health Score (0.0-1.0)| DecisionEngine
+        DecisionEngine -->|Action Plan| Executor
+    end
+
+    subgraph "Remediation"
+        Executor -->|Cordon & Drain| K8sAPI
+        Executor -->|Terminate Instance| CloudProvider
+    end
 ```
+
+## Core Features
+
+- **Signal Normalization**: Ingests disparate metrics (latency, error rates, saturation) and computes a unified `HealthScore`.
+- **Hysteresis & Stabilization**: Implements evaluation windows and cooldown periods to prevent remediation flapping during transient spikes.
+- **Safety First**:
+    - **Gradual Drains**: Respects PDBs (Pod Disruption Budgets) with configurable timeouts.
+    - **Blast Radius Containment**: Rate limits concurrent remediations to prevent service availability drops.
 
 ## Getting Started
 
 ### Prerequisites
 - Go 1.23+
-- Docker
-- Kubernetes Cluster (Kind, Minikube, or Cloud)
+- Kubernetes 1.25+
+- Helm 3.x
 
-### Installation
-1.  **Build the binary**:
+### Quick Start
+
+1.  **Clone the Repository**
     ```bash
-    make build
-    ```
-2.  **Run locally** (requires active Kubeconfig):
-    ```bash
-    make run
-    ```
-3.  **Build Docker Image**:
-    ```bash
-    make docker-build
+    git clone https://github.com/rramesh17993/Self-Healing-Node-Pool-Controller.git
+    cd Self-Healing-Node-Pool-Controller
     ```
 
-### Deployment
-Deploy using Helm:
-```bash
-helm install self-healing-controller ./deploy/helm
-```
+2.  **Deploy via Helm**
+    ```bash
+    helm install node-healer ./deploy/helm \
+      --set policy.unhealthyScore=0.7 \
+      --set policy.maxConcurrentDrains=1
+    ```
+
+3.  **Verify Operation**
+    ```bash
+    kubectl get pods -l app.kubernetes.io/name=self-healing-nodepool
+    ```
 
 ## Configuration
-See `deploy/helm/values.yaml` for configuration options:
-- `policy.unhealthyScore`: Threshold for remediation (default: 0.6).
-- `policy.evaluationWindow`: Time window for signal evaluation.
+
+Control the healing sensitivity via `deploy/helm/values.yaml`:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `policy.unhealthyScore` | Threshold (0.0-1.0) to trigger remediation. Lower is more sensitive. | `0.6` |
+| `policy.evaluationWindow` | Duration to observe signals before acting. | `5m` |
+| `policy.cooldown` | Minimum time between remediations on the same node. | `30m` |
 
 ## Contributing
-1.  Fork the repository.
-2.  Create a feature branch.
-3.  Submit a Pull Request.
+
+Engineering improvements and PRs are welcome. Please ensure all commits pass the CI pipeline (`make test`).
 
 ## License
-MIT License. See [LICENSE](LICENSE) for details.
+
+MIT License. Copyright (c) 2025 Rajesh Ramesh.
