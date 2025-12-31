@@ -13,3 +13,6 @@
 # Temporary
 tmp/
 *.log
+
+# Personal / Prep
+INTERVIEW_QA.md
