@@ -15,13 +15,13 @@ The controller operates as a closed-loop control system independent of the cloud
 ```mermaid
 graph TD
     subgraph "Observation Loop"
-        Prometheus[Prometheus / Metrics Adapter] -->|Raw Signals| Collector
+        Prometheus["Prometheus / Metrics Adapter"] -->|Raw Signals| Collector
         Kubelet[Kubelet] -->|Node Conditions| Collector
     end
 
     subgraph "Control Loop"
         Collector -->|Normalized Metrics| Scorer
-        Scorer -->|Health Score (0.0-1.0)| DecisionEngine
+        Scorer -->|"Health Score (0.0-1.0)"| DecisionEngine
         DecisionEngine -->|Action Plan| Executor
     end
 
