@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chart.fullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "chart.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /controller
+          args:
+            - --metrics-bind-address=:8080
+            # TODO: Add config map or flags for policy once we move away from hardcoded
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP

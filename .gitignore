@@ -1,0 +1,15 @@
+# Binaries
+/bin
+/controller
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Temporary
+tmp/
+*.log

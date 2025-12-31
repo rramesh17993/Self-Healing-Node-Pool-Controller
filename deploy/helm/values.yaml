@@ -1,0 +1,17 @@
+image:
+  repository: example/self-healing-controller
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+policy:
+  unhealthyScore: 0.6
+  evaluationWindow: 5m
+  maxConcurrentDrains: 1
